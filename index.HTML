@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Self-Hatred Index Assessment</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #1e1e2f;
+      font-family: 'Segoe UI', sans-serif;
+      color: #f0f0f0;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      align-items: center;
+      height: 100vh;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      color: #ffffff;
+    }
+
+    .slider-container {
+      width: 100%;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 4px;
+    }
+
+    .description {
+      font-size: 0.8rem;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    input[type=range] {
+      width: 100%;
+      appearance: none;
+      height: 8px;
+      background: #444;
+      border-radius: 5px;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #00f0a0;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .slider-value {
+      float: right;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 10px 24px;
+      background-color: #00f0a0;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      color: #1e1e2f;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    canvas {
+      width: 100%;
+      background-color: #1a1a26;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      padding-top: 100px;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+    }
+
+    .modal-content {
+      background-color: #292942;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 500px;
+      border-radius: 10px;
+      color: #f0f0f0;
+      text-align: center;
+    }
+
+    .modal-header {
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+      font-weight: bold;
+      color: #00f0a0;
+    }
+
+    .modal-close {
+      margin-top: 20px;
+      padding: 8px 20px;
+      background-color: #00f0a0;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #1e1e2f;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Self-Hatred Index Assessment</h1>
+
+    <div class="slider-container">
+      <label>Failure frequency (F): <span class="slider-value" id="f_val">5</span></label>
+      <input type="range" id="failure" min="0" max="10" value="5" oninput="document.getElementById('f_val').textContent = this.value">
+      <div class="description">빈번한 실패 경험의 누적 정도입니다.</div>
+
+      <label>Norm deviation (N): <span class="slider-value" id="n_val">5</span></label>
+      <input type="range" id="normGap" min="0" max="10" value="5" oninput="document.getElementById('n_val').textContent = this.value">
+      <div class="description">사회적 규범에서의 이탈 또는 도덕적 자기 기준과의 괴리입니다.</div>
+
+      <label>Comparison inferiority (T): <span class="slider-value" id="t_val">5</span></label>
+      <input type="range" id="comparison" min="0" max="10" value="5" oninput="document.getElementById('t_val').textContent = this.value">
+      <div class="description">타인과의 비교를 통해 느끼는 열등감의 주관적 빈도입니다.</div>
+
+      <button onclick="calculate()">Submit</button>
+    </div>
+
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div id="customModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">A Message for You</div>
+      <div id="modalMessage">...</div>
+      <button class="modal-close" onclick="document.getElementById('customModal').style.display='none'">OK</button>
+    </div>
+  </div>
+
+  <script>
+    Chart.register(window['chartjs-plugin-annotation']);
+
+    const ctx = document.getElementById('chart').getContext('2d');
+    const mu = 50;
+    const sigma = 12;
+
+    const gaussian = (x, mu = 50, sigma = 12) => {
+      return (1 / (sigma * Math.sqrt(2 * Math.PI))) *
+             Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2));
+    };
+
+    const labels = Array.from({ length: 101 }, (_, i) => i);
+    const gaussianData = labels.map(x => gaussian(x, mu, sigma));
+
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Normal Distribution of H(t)',
+            data: gaussianData,
+            borderColor: '#00f0a0',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2.3,
+        plugins: {
+          legend: {
+            labels: {
+              color: '#ddd'
+            }
+          },
+          annotation: {
+            annotations: {}
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#ccc' },
+            title: {
+              display: true,
+              text: 'H(t)',
+              color: '#ccc'
+            }
+          },
+          y: {
+            ticks: { color: '#ccc' },
+            title: {
+              display: true,
+              text: 'Probability',
+              color: '#ccc'
+            }
+          }
+        }
+      }
+    });
+
+    function calculate() {
+      const F = parseFloat(document.getElementById('failure').value);
+      const N = parseFloat(document.getElementById('normGap').value);
+      const T = parseFloat(document.getElementById('comparison').value);
+
+      const alpha = 0.5;
+      const beta = 0.6;
+      const gamma = 0.4;
+
+      const H = (alpha * F) + (beta * N) + (gamma * T);
+      const Hfixed = H.toFixed(2);
+      const Hscaled = (H / 15) * 100;
+      const yVal = gaussian(Hscaled, mu, sigma);
+
+      const isOutlier = (Hscaled < (mu - 3 * sigma) || Hscaled > (mu + 3 * sigma));
+
+      chart.options.plugins.annotation.annotations = {
+        marker: {
+          type: 'line',
+          xMin: Hscaled,
+          xMax: Hscaled,
+          borderColor: isOutlier ? '#ffdd55' : '#ff4d6d',
+          borderDash: isOutlier ? [6, 6] : [],
+          borderWidth: 2,
+          label: {
+            content: `H = ${Hfixed}`,
+            enabled: true,
+            position: "top",
+            backgroundColor: isOutlier ? '#ffdd55' : '#ff4d6d',
+            color: '#1e1e2f',
+            font: {
+              weight: 'bold'
+            }
+          }
+        }
+      };
+
+      chart.update();
+
+      let msg = "";
+      if (isOutlier) {
+        msg = `H(t) = ${Hfixed}<br><br>Your self-hatred level exceeds 3 standard deviations from the human mean. <br>Statistically rare, psychologically heavy—<br><strong>but this is not shameful. It is singular.</strong>`;
+      } else if (Hscaled < 40) {
+        msg = "You are within the curve. Your self-perception reflects awareness, not pathology.";
+      } else if (Hscaled < 70) {
+        msg = "You are among many who bear quiet wounds. Let it be—but do not carry it alone.";
+      } else {
+        msg = `H(t) = ${Hfixed}<br><br>Your score falls within the upper segment of the curve.<br>This is pain shared by many, yet still personally profound.`;
+      }
+
+      document.getElementById('modalMessage').innerHTML = msg;
+      document.getElementById('customModal').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
